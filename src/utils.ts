@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
-    preimageManager,
+    getPreimageManager,
     requestPermission,
-} from "@novasamatech/host-api-wrapper";
+} from "@parity/product-sdk-host";
 import {
     SignerManager,
     HostProvider,
@@ -34,11 +34,11 @@ async function ensurePermission(tag: "ChainSubmit" | "PreimageSubmit" | "Stateme
     if (_grantedPermissions.has(tag)) return;
     try {
         const result = await requestPermission({ tag, value: undefined });
-        if (result.isOk() && result.value) {
+        if (result.ok && result.value) {
             _grantedPermissions.add(tag);
             console.log(`[Permission] ${tag} granted`);
         } else {
-            console.warn(`[Permission] ${tag} denied`, result.isErr() ? result.error : "user rejected");
+            console.warn(`[Permission] ${tag} denied`, result.ok ? "user rejected" : result.error);
         }
     } catch (err) {
         console.warn(`[Permission] ${tag} request failed:`, err);
@@ -226,6 +226,10 @@ export async function uploadToBulletin(_account: AppAccount, bytes: Uint8Array):
     await ensurePermission("PreimageSubmit");
     const cid = calculateCID(bytes);
     console.log("[Bulletin] Submitting preimage via host, size:", bytes.length, "expected CID:", cid);
+    const preimageManager = await getPreimageManager();
+    if (!preimageManager) {
+        throw new Error("Preimage manager unavailable — open this app inside a Polkadot host.");
+    }
     await preimageManager.submit(bytes);
     console.log("[Bulletin] Preimage stored.");
     return cid;
@@ -359,7 +363,9 @@ async function ensureContractsReady(): Promise<void> {
         // `fromLiveClient` resolves the deployed contract address from the live
         // CDM registry on each init instead of trusting the snapshot baked into
         // cdm.json — a redeploy is picked up without shipping a new cdm.json.
-        _contractManager = await ContractManager.fromLiveClient(
+        // Since product-sdk 0.18, fromLiveClient returns a Result instead of
+        // throwing on resolution failure.
+        const live = await ContractManager.fromLiveClient(
             _cdmJson,
             client,
             paseo_asset_hub,
@@ -370,6 +376,8 @@ async function ensureContractsReady(): Promise<void> {
                 libraries: ["@example/feedback"],
             },
         );
+        if (!live.ok) throw live.error;
+        _contractManager = live.value;
         _contract = wrapContract(_contractManager.getContract("@example/feedback"));
         console.log("[CDM] Contract manager ready (live registry resolution)");
     })();
@@ -393,7 +401,16 @@ export function getContract(): any {
                         if (!_contract) throw new Error("Contract init failed");
                         const real = _contract[prop as string];
                         if (!real) throw new Error(`Unknown method: ${String(prop)}`);
-                        return real[methodProp](...args);
+                        // Since product-sdk 0.18, `.tx(...)` returns a Result
+                        // instead of throwing. Unwrap it (re-throw the `err`
+                        // channel) so call sites keep their try/catch flow.
+                        // `.query(...)` is unchanged upstream.
+                        const outcome = await real[methodProp](...args);
+                        if (methodProp === "tx") {
+                            if (!outcome.ok) throw outcome.error;
+                            return outcome.value;
+                        }
+                        return outcome;
                     };
                 },
             });
@@ -429,25 +446,26 @@ async function mapAccountWithRuntime(
     account: AppAccount,
 ): Promise<void> {
     if (_mappedAccounts.has(account.address)) return;
-    try {
-        const mapped = await ensureContractAccountMapped(
-            runtime,
-            account.address as never,
-            account.signer,
-        );
-        if (mapped === null) {
-            console.log(`[Revive] Account ${account.address} already mapped`);
-        } else {
-            console.log(`[Revive] Account mapped in block #${mapped.block.number}`);
+    // Since product-sdk 0.18, ensureContractAccountMapped returns a Result
+    // (ok(null) = already mapped) instead of throwing.
+    const mapped = await ensureContractAccountMapped(
+        runtime,
+        account.address as never,
+        account.signer,
+    );
+    if (!mapped.ok) {
+        console.error("[Revive] ensureContractAccountMapped failed:", mapped.error);
+        if (mapped.error.cause) {
+            console.error("[Revive] underlying cause:", mapped.error.cause);
         }
-        _mappedAccounts.add(account.address);
-    } catch (err) {
-        console.error("[Revive] ensureContractAccountMapped failed:", err);
-        if (err && typeof err === "object" && "cause" in err) {
-            console.error("[Revive] underlying cause:", (err as any).cause);
-        }
-        throw err;
+        throw mapped.error;
     }
+    if (mapped.value === null) {
+        console.log(`[Revive] Account ${account.address} already mapped`);
+    } else {
+        console.log(`[Revive] Account mapped in block #${mapped.value.block.number}`);
+    }
+    _mappedAccounts.add(account.address);
 }
 
 export async function ensureMapping(account: AppAccount): Promise<void> {
