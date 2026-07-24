@@ -167,6 +167,26 @@ cdm deploy -n paseo
 (This repo also ships `npm run deploy`, which runs the same command with
 the network endpoints pinned explicitly. Either works.)
 
+> **Which network is which:** the CDM `paseo` preset targets **Paseo Next v2**
+> (para 1500, a preview network), not the public Paseo testnet. To target
+> **devnet** — the public products devnet on the Paseo testnet Asset Hub
+> (para 1000, community-operated CDM registry) — use `cdm deploy -n devnet`
+> (or `npm run deploy:devnet`; endpoints and registry come from the preset),
+> and build the frontend with `VITE_NETWORK=devnet` so it connects to devnet
+> and resolves the contract from the devnet registry.
+>
+> Deploying to devnet, the whole flow uses `-n devnet` in place of `-n paseo`
+> (`cdm account map -n devnet`, `cdm account bal -n devnet`, `cdm i -n devnet`),
+> and the PAS faucet is the **para-1000** one:
+> <https://faucet.polkadot.io/?parachain=1000>. The `-n devnet` preset needs
+> **CDM v0.9.0+** (`cdm --version`); older CLIs report `unknown preset`.
+>
+> **Deploy the contract to devnet before shipping a `VITE_NETWORK=devnet`
+> build.** The frontend resolves the contract address from the devnet registry
+> at startup and there is no `cdm.json` fallback, so a devnet build pointed at
+> a network where `@example/feedback` isn't registered fails at contract init
+> with a resolution error.
+
 *What's happening, in order:* (1) rebuilds if needed, (2) deploys the
 bytecode to Paseo Asset Hub via pallet-revive, (3) publishes the contract
 metadata to Bulletin, (4) registers `@<your-handle>/feedback → (address,
