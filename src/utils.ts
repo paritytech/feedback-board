@@ -24,6 +24,21 @@ import { CID } from "multiformats/cid";
 import * as raw from "multiformats/codecs/raw";
 import type { MultihashDigest } from "multiformats/hashes/interface";
 
+/**
+ * Unwrap a product-sdk `Result` to its value, re-throwing the `err` channel as
+ * an `Error`. Since product-sdk 0.18 fallible calls return `Result` instead of
+ * throwing; this bridges them back onto throw / try-catch control flow. Mirrors
+ * the CLI's `unwrapResult` (playground-cli #470).
+ */
+export function unwrapResult<T>(
+    result: { ok: true; value: T } | { ok: false; error: unknown },
+): T {
+    if (!result.ok) {
+        throw result.error instanceof Error ? result.error : new Error(String(result.error));
+    }
+    return result.value;
+}
+
 // ---------------------------------------------------------------------------
 // Permissions (RFC-0002)
 // ---------------------------------------------------------------------------
@@ -406,11 +421,7 @@ export function getContract(): any {
                         // channel) so call sites keep their try/catch flow.
                         // `.query(...)` is unchanged upstream.
                         const outcome = await real[methodProp](...args);
-                        if (methodProp === "tx") {
-                            if (!outcome.ok) throw outcome.error;
-                            return outcome.value;
-                        }
-                        return outcome;
+                        return methodProp === "tx" ? unwrapResult(outcome) : outcome;
                     };
                 },
             });
@@ -446,26 +457,26 @@ async function mapAccountWithRuntime(
     account: AppAccount,
 ): Promise<void> {
     if (_mappedAccounts.has(account.address)) return;
-    // Since product-sdk 0.18, ensureContractAccountMapped returns a Result
-    // (ok(null) = already mapped) instead of throwing.
-    const mapped = await ensureContractAccountMapped(
-        runtime,
-        account.address as never,
-        account.signer,
-    );
-    if (!mapped.ok) {
-        console.error("[Revive] ensureContractAccountMapped failed:", mapped.error);
-        if (mapped.error.cause) {
-            console.error("[Revive] underlying cause:", mapped.error.cause);
+    try {
+        // Since product-sdk 0.18, ensureContractAccountMapped returns a Result
+        // (ok(null) = already mapped) instead of throwing. Unwrap it so the
+        // catch handles both a returned `err` and any thrown failure with the
+        // same cause-chain logging.
+        const mapped = unwrapResult(
+            await ensureContractAccountMapped(runtime, account.address as never, account.signer),
+        );
+        if (mapped === null) {
+            console.log(`[Revive] Account ${account.address} already mapped`);
+        } else {
+            console.log(`[Revive] Account mapped in block #${mapped.block.number}`);
         }
-        throw mapped.error;
+        _mappedAccounts.add(account.address);
+    } catch (err) {
+        console.error("[Revive] ensureContractAccountMapped failed:", err);
+        const cause = err && typeof err === "object" ? (err as { cause?: unknown }).cause : undefined;
+        if (cause) console.error("[Revive] underlying cause:", cause);
+        throw err;
     }
-    if (mapped.value === null) {
-        console.log(`[Revive] Account ${account.address} already mapped`);
-    } else {
-        console.log(`[Revive] Account mapped in block #${mapped.value.block.number}`);
-    }
-    _mappedAccounts.add(account.address);
 }
 
 export async function ensureMapping(account: AppAccount): Promise<void> {
