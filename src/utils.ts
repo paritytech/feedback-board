@@ -62,44 +62,46 @@ interface NetworkConfig {
     loadDescriptor(): Promise<AssetHubDescriptor>;
 }
 
-const NETWORKS: Record<"paseo-next" | "devnet", NetworkConfig> = {
-    "paseo-next": {
-        label: "Paseo Next",
-        gateways: [
-            "https://paseo-bulletin-next-ipfs.polkadot.io/ipfs/",
-            "https://dweb.link/ipfs/",
-            "https://ipfs.io/ipfs/",
-            "https://nftstorage.link/ipfs/",
-        ],
-        registry: "0xf62c2ece29cd8df2e10040ecfa5a894a5c5d9cb0",
-        loadDescriptor: async () =>
-            (await import("@parity/product-sdk-descriptors/paseo-asset-hub")).paseo_asset_hub,
-    },
-    // Bulletin Paseo has no dedicated HTTP gateway; devnet content is read
-    // via public IPFS gateways.
-    devnet: {
-        label: "Devnet (Paseo testnet)",
-        gateways: [
-            "https://ipfs.io/ipfs/",
-            "https://dweb.link/ipfs/",
-            "https://nftstorage.link/ipfs/",
-        ],
-        registry: "0x59b0245778917af55224e5f8fb55f7f8d452619f",
-        loadDescriptor: async () =>
-            (await import("@parity/product-sdk-descriptors/devnet-asset-hub")).devnet_asset_hub,
-    },
-};
+// `import.meta.env.VITE_NETWORK` is inlined as a literal at build time, so this
+// comparison folds and the unselected network's ~880 kB metadata chunk is
+// dropped from the bundle. Keep it a direct literal comparison — routing the
+// choice through a lookup table or a normalizing helper leaves both import()s
+// reachable, so the build emits both metadata chunks.
+export const NETWORK: NetworkConfig =
+    import.meta.env.VITE_NETWORK === "devnet"
+        ? {
+              label: "Devnet (Paseo testnet)",
+              // Bulletin Paseo has no dedicated HTTP gateway; read via public IPFS gateways.
+              gateways: [
+                  "https://ipfs.io/ipfs/",
+                  "https://dweb.link/ipfs/",
+                  "https://nftstorage.link/ipfs/",
+              ],
+              registry: "0x59b0245778917af55224e5f8fb55f7f8d452619f",
+              loadDescriptor: async () =>
+                  (await import("@parity/product-sdk-descriptors/devnet-asset-hub")).devnet_asset_hub,
+          }
+        : {
+              label: "Paseo Next",
+              gateways: [
+                  "https://paseo-bulletin-next-ipfs.polkadot.io/ipfs/",
+                  "https://dweb.link/ipfs/",
+                  "https://ipfs.io/ipfs/",
+                  "https://nftstorage.link/ipfs/",
+              ],
+              registry: "0xf62c2ece29cd8df2e10040ecfa5a894a5c5d9cb0",
+              loadDescriptor: async () =>
+                  (await import("@parity/product-sdk-descriptors/paseo-asset-hub")).paseo_asset_hub,
+          };
 
-function resolveNetwork(): NetworkConfig {
-    const selected = (import.meta.env.VITE_NETWORK ?? "").trim().toLowerCase();
-    if (selected === "devnet") return NETWORKS.devnet;
-    if (selected && selected !== "paseo" && selected !== "paseo-next") {
-        console.warn(`[Network] Unknown VITE_NETWORK "${selected}", falling back to paseo-next`);
+// Dev only: a typo'd VITE_NETWORK silently falls back to paseo-next, so say so
+// while developing. Kept out of the selection above to preserve the fold.
+if (import.meta.env.DEV) {
+    const raw = import.meta.env.VITE_NETWORK;
+    if (raw && raw !== "devnet" && raw !== "paseo" && raw !== "paseo-next") {
+        console.warn(`[Network] Unknown VITE_NETWORK "${raw}", falling back to paseo-next`);
     }
-    return NETWORKS["paseo-next"];
 }
-
-export const NETWORK = resolveNetwork();
 
 // ---------------------------------------------------------------------------
 // Permissions (RFC-0002)

@@ -186,6 +186,12 @@ the network endpoints pinned explicitly. Either works.)
 > at startup and there is no `cdm.json` fallback, so a devnet build pointed at
 > a network where `@example/feedback` isn't registered fails at contract init
 > with a resolution error.
+>
+> `cdm.json` holds one network's registry, address, version and ABI, and
+> `cdm deploy` rewrites them for whichever network you pass. Deploy to a single
+> target and commit that manifest; the frontend passes the selected network's
+> registry explicitly and re-resolves addresses live, so it tolerates a
+> manifest committed for the other network without a code change.
 
 *What's happening, in order:* (1) rebuilds if needed, (2) deploys the
 bytecode to Paseo Asset Hub via pallet-revive, (3) publishes the contract
