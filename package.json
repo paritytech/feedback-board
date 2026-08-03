@@ -14,15 +14,13 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.2.0",
-    "@novasamatech/host-api": "^0.8.10",
-    "@novasamatech/host-api-wrapper": "^0.8.10",
-    "@parity/product-sdk": "^0.15.1",
     "@parity/product-sdk-address": "^0.1.1",
-    "@parity/product-sdk-chain-client": "^0.7.5",
-    "@parity/product-sdk-contracts": "^0.8.1",
-    "@parity/product-sdk-descriptors": "^0.6.2",
-    "@parity/product-sdk-signer": "^0.8.2",
-    "@parity/product-sdk-tx": "^0.2.15",
+    "@parity/product-sdk-chain-client": "^0.9.1",
+    "@parity/product-sdk-contracts": "^0.9.2",
+    "@parity/product-sdk-descriptors": "^0.8.0",
+    "@parity/product-sdk-host": "^0.14.1",
+    "@parity/product-sdk-signer": "^0.11.1",
+    "@parity/product-sdk-tx": "^0.3.2",
     "multiformats": "^13.4.2",
     "polkadot-api": "^2.1.6",
     "react": "^19.0.0",
@@ -36,6 +34,7 @@
     "vite": "^8.0.16"
   },
   "overrides": {
-    "@polkadot-api/json-rpc-provider": "0.2.0"
+    "@polkadot-api/json-rpc-provider": "0.2.0",
+    "ws": "^8.21.0"
   }
 }
