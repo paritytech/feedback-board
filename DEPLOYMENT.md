@@ -316,7 +316,7 @@ All of these were hit for real while writing this guide.
 | Symptom | Cause / fix |
 |---|---|
 | Build fails asking for `rustup component add rust-src` | run exactly that, then retry `cdm build` |
-| `AccountUnmapped` on deploy or contract call | run `cdm account map -n paseo` (needs a funded account) |
+| `AccountUnmapped` on deploy or contract call | run `cdm account map -n <network>` for the network you deploy to (`-n paseo` for paseo-next, `-n devnet` for devnet; needs a funded account) |
 | `store data: InvalidTxError {"Invalid":{"Payment"}}` at the end of `cdm deploy` | no Bulletin storage allowance; use the Bulletin faucet from step 2, then re-run the deploy |
 | Deploy fails with a registry/name conflict | the package name in `Cargo.toml` still belongs to someone else; see step 3 |
 | `cdm deploy` looks finished but doesn't exit | it's finalizing the registry update; give it a couple of minutes. Don't kill it: an interrupted run leaves the registry on your previous version |

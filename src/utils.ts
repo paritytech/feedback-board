@@ -97,9 +97,9 @@ export const NETWORK: NetworkConfig =
 // Dev only: a typo'd VITE_NETWORK silently falls back to paseo-next, so say so
 // while developing. Kept out of the selection above to preserve the fold.
 if (import.meta.env.DEV) {
-    const raw = import.meta.env.VITE_NETWORK;
-    if (raw && raw !== "devnet" && raw !== "paseo" && raw !== "paseo-next") {
-        console.warn(`[Network] Unknown VITE_NETWORK "${raw}", falling back to paseo-next`);
+    const configured = import.meta.env.VITE_NETWORK;
+    if (configured && configured !== "devnet" && configured !== "paseo" && configured !== "paseo-next") {
+        console.warn(`[Network] Unknown VITE_NETWORK "${configured}", falling back to paseo-next`);
     }
 }
 
