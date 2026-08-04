@@ -10,6 +10,7 @@
     "build:frontend": "tsc -b && vite build",
     "build:contracts": "cdm build",
     "deploy": "cdm deploy -n paseo --registry-address 0xf62c2ece29cd8df2e10040ecfa5a894a5c5d9cb0 --assethub-url wss://paseo-asset-hub-next-rpc.polkadot.io --bulletin-url wss://paseo-bulletin-next-rpc.polkadot.io",
+    "deploy:devnet": "cdm deploy -n devnet",
     "preview": "vite preview"
   },
   "dependencies": {
